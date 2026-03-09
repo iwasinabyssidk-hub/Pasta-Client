@@ -141,7 +141,7 @@ void CStatusBar::RaceTimeRender()
 		RaceTime = (Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_Snap.m_pGameInfoObj->m_RoundStartTick) / Client()->GameTickSpeed();
 	m_CurrentRaceTime = RaceTime;
 	char aTimeBuf[64];
-	str_time((int64_t)RaceTime * 100, TIME_DAYS, aTimeBuf, sizeof(aTimeBuf));
+	str_time((int64_t)RaceTime * 100, ETimeFormat::DAYS, aTimeBuf, sizeof(aTimeBuf));
 
 	if(GameClient()->m_Snap.m_pGameInfoObj->m_TimeLimit && RaceTime <= 60 && (GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer <= 0))
 	{

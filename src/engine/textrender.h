@@ -8,6 +8,8 @@
 
 #include <engine/graphics.h>
 
+#include <string> // TClient
+
 #include <cstdint>
 #include <memory>
 
