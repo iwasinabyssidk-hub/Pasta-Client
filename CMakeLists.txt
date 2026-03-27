@@ -2618,6 +2618,17 @@ if(CLIENT)
     components/tclient/custom_communities.cpp
     components/tclient/custom_communities.h
     components/tclient/data_version.h
+    components/tclient/menus_pasta.cpp
+    components/tclient/pasta_fent.cpp
+    components/tclient/pasta_fent.h
+    components/tclient/pasta_misc.cpp
+    components/tclient/pasta_misc.h
+    components/tclient/pasta_pilot.cpp
+    components/tclient/pasta_pilot.h
+    components/tclient/pasta_tas.cpp
+    components/tclient/pasta_tas.h
+    components/tclient/pasta_visuals.cpp
+    components/tclient/pasta_visuals.h
     components/tclient/menus_tclient.cpp
     components/tclient/mod.cpp
     components/tclient/mod.h

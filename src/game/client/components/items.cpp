@@ -19,6 +19,8 @@
 #include <game/client/projectile_data.h>
 #include <game/mapitems.h>
 
+#include <vector>
+
 void CItems::RenderProjectile(const CProjectileData *pCurrent, int ItemId)
 {
 	int CurWeapon = std::clamp(pCurrent->m_Type, 0, NUM_WEAPONS - 1);
@@ -86,6 +88,52 @@ void CItems::RenderProjectile(const CProjectileData *pCurrent, int ItemId)
 
 	vec2 Pos = CalcPos(pCurrent->m_StartPos, pCurrent->m_StartVel, Curvature, Speed, Ct);
 	vec2 PrevPos = CalcPos(pCurrent->m_StartPos, pCurrent->m_StartVel, Curvature, Speed, Ct - 0.001f);
+
+	if(g_Config.m_PastaBulletLines)
+	{
+		const bool IsSupportedWeapon =
+			(CurWeapon == WEAPON_GUN && g_Config.m_PastaBulletLinesGun) ||
+			(CurWeapon == WEAPON_SHOTGUN && g_Config.m_PastaBulletLinesShotgun) ||
+			(CurWeapon == WEAPON_GRENADE && g_Config.m_PastaBulletLinesGrenade);
+		const bool IsLocalOwner = pCurrent->m_ExtraInfo && pCurrent->m_Owner == GameClient()->m_Snap.m_LocalClientId;
+		if(IsSupportedWeapon && (!g_Config.m_PastaBulletLinesSelfOnly || IsLocalOwner))
+		{
+			const float LineAlpha = g_Config.m_PastaBulletLinesAlpha / 100.0f;
+			if(LineAlpha > 0.0f)
+			{
+				std::vector<IGraphics::CLineItem> vLineSegments;
+				const int Segments = CurWeapon == WEAPON_GRENADE ? 28 : 20;
+				vec2 SegmentStart = pCurrent->m_StartPos;
+				for(int Step = 1; Step <= Segments; ++Step)
+				{
+					const float T = maximum(Ct, 0.0f) * Step / (float)Segments;
+					const vec2 SegmentEnd = CalcPos(pCurrent->m_StartPos, pCurrent->m_StartVel, Curvature, Speed, T);
+					vec2 ColPos;
+					vec2 NewPos;
+					if(Collision()->IntersectLine(SegmentStart, SegmentEnd, &ColPos, &NewPos))
+					{
+						vLineSegments.emplace_back(SegmentStart.x, SegmentStart.y, ColPos.x, ColPos.y);
+						break;
+					}
+
+					vLineSegments.emplace_back(SegmentStart.x, SegmentStart.y, SegmentEnd.x, SegmentEnd.y);
+					SegmentStart = SegmentEnd;
+				}
+
+				if(!vLineSegments.empty())
+				{
+					ColorRGBA LineColor = CurWeapon == WEAPON_GRENADE ? ColorRGBA(1.0f, 0.4f, 0.3f, LineAlpha) :
+						CurWeapon == WEAPON_SHOTGUN ? ColorRGBA(1.0f, 0.75f, 0.25f, LineAlpha) :
+								       ColorRGBA(1.0f, 1.0f, 1.0f, LineAlpha);
+					Graphics()->TextureClear();
+					Graphics()->LinesBegin();
+					Graphics()->SetColor(LineColor);
+					Graphics()->LinesDraw(vLineSegments.data(), vLineSegments.size());
+					Graphics()->LinesEnd();
+				}
+			}
+		}
+	}
 
 	float Alpha = 1.f;
 	if(IsOtherTeam)

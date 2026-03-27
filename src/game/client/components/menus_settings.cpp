@@ -1471,6 +1471,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("DDNet"),
 		Localize("Assets"),
 		TCLocalize("TClient"),
+		Localize("Pasta"),
 		Localize("Profiles"),
 		Localize("Configs")};
 
@@ -1539,17 +1540,22 @@ void CMenus::RenderSettings(CUIRect MainView)
 	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_TCLIENT)
 	{
-		GameClient()->m_MenuBackground.ChangePosition(13);
+		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_RESERVED0);
 		RenderSettingsTClient(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_PASTA)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_RESERVED1);
+		RenderSettingsPasta(MainView);
 	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_PROFILES)
 	{
-		GameClient()->m_MenuBackground.ChangePosition(14);
+		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_BROWSER_INTERNET);
 		RenderSettingsTClientProfiles(MainView);
 	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_CONFIGS)
 	{
-		GameClient()->m_MenuBackground.ChangePosition(15);
+		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_BROWSER_LAN);
 		RenderSettingsTClientConfigs(MainView);
 	}
 	else

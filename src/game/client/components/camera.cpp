@@ -341,7 +341,11 @@ void CCamera::OnRender()
 			m_CamType = CAMTYPE_PLAYER;
 		}
 
-		if(GameClient()->m_Snap.m_SpecInfo.m_Active)
+		if(g_Config.m_PastaAvoidMode == 3 && g_Config.m_PastaAvoidfreeze != 0 && g_Config.m_PastaAvoidFentSpectateScan && GameClient()->m_PastaFent.IsRunning() && !GameClient()->m_Snap.m_SpecInfo.m_Active)
+			m_Center = GameClient()->m_PastaFent.GetInterpolatedRenderPos() + m_aDyncamCurrentCameraOffset[g_Config.m_ClDummy];
+		else if(GameClient()->m_PastaTas.IsRecording() && GameClient()->m_PastaTas.IsWorldInitialized() && !GameClient()->m_Snap.m_SpecInfo.m_Active)
+			m_Center = GameClient()->m_PastaTas.GetInterpolatedPlayerPos() + m_aDyncamCurrentCameraOffset[g_Config.m_ClDummy];
+		else if(GameClient()->m_Snap.m_SpecInfo.m_Active)
 			m_Center = GameClient()->m_Snap.m_SpecInfo.m_Position + m_aDyncamCurrentCameraOffset[g_Config.m_ClDummy];
 		else
 			m_Center = GameClient()->m_LocalCharacterPos + m_aDyncamCurrentCameraOffset[g_Config.m_ClDummy];
@@ -399,6 +403,14 @@ void CCamera::OnRender()
 
 	if(m_CameraSmoothing)
 		m_Center = m_CameraSmoothingCenter;
+
+	if(!GameClient()->m_Snap.m_SpecInfo.m_Active && (g_Config.m_PastaSmoothCam || g_Config.m_PastaSuperDyncam))
+	{
+		const float SmoothAmount = std::clamp(g_Config.m_PastaSmoothCamSmoothness / 100.0f, 0.0f, 1.0f);
+		const float BaseResponse = g_Config.m_PastaSuperDyncam ? 2.5f : 4.5f;
+		const float Blend = std::clamp(Client()->RenderFrameTime() * ((1.0f - SmoothAmount) * 10.0f + BaseResponse), 0.01f, 1.0f);
+		m_Center = mix(m_PrevCenter, m_Center, Blend);
+	}
 
 	m_PrevCenter = m_Center;
 	m_PrevSpecId = SpecId;

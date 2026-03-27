@@ -58,6 +58,16 @@ public:
 	bool DoEditBoxWithLabel(CLineInput *LineInput, const CUIRect *pRect, const char *pLabel, const char *pDefault, char *pBuf, size_t BufSize);
 	bool DoLine_RadioMenu(CUIRect &View, const char *pLabel, std::vector<CButtonContainer> &vButtonContainers, const std::vector<const char *> &vLabels, const std::vector<int> &vValues, int &Value);
 	bool DoLine_KeyReader(CUIRect &View, CButtonContainer &ReaderButton, CButtonContainer &ClearButton, const char *pName, const char *pCommand);
+	CUi *MenuUi() const { return Ui(); }
+	int DoButtonLineSize_MenuHelper(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, float ButtonLineSize, bool Fake = false, const char *pImageName = nullptr, int Corners = IGraphics::CORNER_ALL, float Rounding = 5.0f, float FontFactor = 0.0f, ColorRGBA Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f)) { return DoButtonLineSize_Menu(pButtonContainer, pText, Checked, pRect, ButtonLineSize, Fake, pImageName, Corners, Rounding, FontFactor, Color); }
+	ColorHSLA DoLine_ColorPickerHelper(CButtonContainer *pResetId, float LineSize, float LabelSize, float BottomMargin, CUIRect *pMainRect, const char *pText, unsigned int *pColorValue, ColorRGBA DefaultColor, bool CheckBoxSpacing = true, int *pCheckBoxValue = nullptr, bool Alpha = false) { return DoLine_ColorPicker(pResetId, LineSize, LabelSize, BottomMargin, pMainRect, pText, pColorValue, DefaultColor, CheckBoxSpacing, pCheckBoxValue, Alpha); }
+	void PastaTasSaveReplay();
+	void PastaTasLoadSelectedReplay();
+	void PastaTasValidateReplay();
+	void PastaTasReportReplayTime();
+	void PastaTasRemoveUseless();
+	void PastaTasSyncNow();
+	void PastaFentSaveReplay();
 
 private:
 	CUi::SColorPickerPopupContext m_ColorPickerPopupContext;
@@ -691,6 +701,7 @@ public:
 		SETTINGS_DDNET,
 		SETTINGS_ASSETS,
 		SETTINGS_TCLIENT,
+		SETTINGS_PASTA,
 		SETTINGS_PROFILES,
 		SETTINGS_CONFIGS,
 
@@ -845,6 +856,7 @@ private:
 
 	// found in menus_tclient.cpp
 	void RenderSettingsTClient(CUIRect MainView);
+	void RenderSettingsPasta(CUIRect MainView);
 	void RenderSettingsTClientSettings(CUIRect MainView);
 	void RenderSettingsTClientBindWheel(CUIRect MainView);
 	void RenderSettingsTClientChatBinds(CUIRect MainView);

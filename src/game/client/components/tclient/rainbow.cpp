@@ -18,17 +18,22 @@ static T color_lerp(T a, T b, float c)
 
 void CRainbow::OnRender()
 {
-	if(!g_Config.m_TcRainbowTees && !g_Config.m_TcRainbowWeapon && !g_Config.m_TcRainbowHook)
+	const bool PastaRainbowTee = g_Config.m_PastaCustomColorTee != 0;
+	const bool PastaRainbowHook = g_Config.m_PastaCustomColorHook != 0;
+	const bool PastaRainbowWeapon = g_Config.m_PastaCustomColorWeapon != 0;
+	if(!g_Config.m_TcRainbowTees && !g_Config.m_TcRainbowWeapon && !g_Config.m_TcRainbowHook && !PastaRainbowTee && !PastaRainbowHook && !PastaRainbowWeapon)
 		return;
 
-	if(g_Config.m_TcRainbowMode == 0)
+	const int RainbowMode = g_Config.m_TcRainbowMode > 0 ? g_Config.m_TcRainbowMode : COLORMODE_RAINBOW;
+	if(RainbowMode == 0)
 		return;
 
-	m_Time += Client()->RenderFrameTime() * ((float)g_Config.m_TcRainbowSpeed / 100.0f);
+	const int RainbowSpeed = (g_Config.m_TcRainbowTees || g_Config.m_TcRainbowWeapon || g_Config.m_TcRainbowHook) ? g_Config.m_TcRainbowSpeed : g_Config.m_PastaCustomColorRainbowSpeed;
+	m_Time += Client()->RenderFrameTime() * ((float)RainbowSpeed / 100.0f);
 	float DefTick = std::fmod(m_Time, 1.0f);
 	ColorRGBA Col;
 
-	switch(g_Config.m_TcRainbowMode)
+	switch(RainbowMode)
 	{
 	case COLORMODE_RAINBOW:
 		Col = color_cast<ColorRGBA>(ColorHSLA(DefTick, 1.0f, 0.5f));
@@ -65,7 +70,7 @@ void CRainbow::OnRender()
 		CTeeRenderInfo *RenderInfo = &GameClient()->m_aClients[i].m_RenderInfo;
 
 		// check if rainbow is enabled
-		if(Local ? g_Config.m_TcRainbowTees : (g_Config.m_TcRainbowTees && g_Config.m_TcRainbowOthers))
+		if(Local ? (g_Config.m_TcRainbowTees || PastaRainbowTee) : (g_Config.m_TcRainbowTees && g_Config.m_TcRainbowOthers))
 		{
 			RenderInfo->m_BloodColor = Col;
 			RenderInfo->m_ColorBody = Col;

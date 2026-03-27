@@ -55,6 +55,24 @@ public:
 		const CNetObj_Character *pPlayerChar,
 		int ClientId,
 		float Intra = 0.0f);
+	void RenderExternalPlayer(
+		const CNetObj_Character *pPrevChar,
+		const CNetObj_Character *pPlayerChar,
+		const CTeeRenderInfo *pRenderInfo,
+		int ClientId,
+		float Intra = 0.0f)
+	{
+		RenderPlayer(pPrevChar, pPlayerChar, pRenderInfo, ClientId, Intra);
+	}
+	void RenderExternalHook(
+		const CNetObj_Character *pPrevChar,
+		const CNetObj_Character *pPlayerChar,
+		const CTeeRenderInfo *pRenderInfo,
+		int ClientId,
+		float Intra = 0.0f)
+	{
+		RenderHook(pPrevChar, pPlayerChar, pRenderInfo, ClientId, Intra);
+	}
 
 	int Sizeof() const override { return sizeof(*this); }
 	void OnInit() override;

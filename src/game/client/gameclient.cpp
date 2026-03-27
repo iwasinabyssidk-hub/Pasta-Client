@@ -86,8 +86,20 @@ using namespace std::chrono_literals;
 const char *CGameClient::Version() const { return GAME_VERSION; }
 const char *CGameClient::NetVersion() const { return GAME_NETVERSION; }
 const char *CGameClient::NetVersion7() const { return GAME_NETVERSION7; }
-int CGameClient::DDNetVersion() const { return DDNET_VERSION_NUMBER; }
-const char *CGameClient::DDNetVersionStr() const { return m_aDDNetVersionStr; }
+int CGameClient::DDNetVersion() const
+{
+	return g_Config.m_PastaSpoofVersion ? g_Config.m_PastaSpoofVersionNr : DDNET_VERSION_NUMBER;
+}
+
+const char *CGameClient::DDNetVersionStr() const
+{
+	if(g_Config.m_PastaSpoofVersion)
+	{
+		str_format(m_aPastaSpoofVersionStr, sizeof(m_aPastaSpoofVersionStr), "DDNet %d", g_Config.m_PastaSpoofVersionNr);
+		return m_aPastaSpoofVersionStr;
+	}
+	return m_aDDNetVersionStr;
+}
 int CGameClient::ClientVersion7() const { return CLIENT_VERSION7; }
 const char *CGameClient::GetItemName(int Type) const { return m_NetObjHandler.GetObjName(Type); }
 
@@ -166,6 +178,11 @@ void CGameClient::OnConsoleInit()
 					      &m_BindWheel, // TClient
 					      &m_WarList, // TClient
 					      &m_StatusBar, // TClient
+					      &m_PastaMisc, // Pasta
+					      &m_PastaFent, // Pasta
+					      &m_PastaPilot, // Pasta
+					      &m_PastaTas, // Pasta
+					      &m_PastaVisuals, // Pasta
 					      &m_InfoMessages,
 					      &m_Chat,
 					      &m_Broadcast,
@@ -856,7 +873,10 @@ void CGameClient::OnRender()
 		if(Warning.has_value())
 		{
 			const SWarning &TheWarning = Warning.value();
-			m_Menus.PopupWarning(TheWarning.m_aWarningTitle[0] == '\0' ? Localize("Warning") : TheWarning.m_aWarningTitle, TheWarning.m_aWarningMsg, Localize("Ok"), TheWarning.m_AutoHide ? 10s : 0s);
+			if(g_Config.m_PastaNotifications)
+				m_PastaVisuals.PushNotification(TheWarning);
+			else
+				m_Menus.PopupWarning(TheWarning.m_aWarningTitle[0] == '\0' ? Localize("Warning") : TheWarning.m_aWarningTitle, TheWarning.m_aWarningMsg, Localize("Ok"), TheWarning.m_AutoHide ? 10s : 0s);
 		}
 	}
 

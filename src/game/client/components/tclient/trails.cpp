@@ -3,9 +3,44 @@
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
 
+#include <generated/client_data.h>
+
 #include <game/client/animstate.h>
 #include <game/client/gameclient.h>
 #include <game/client/render.h>
+
+namespace
+{
+template<typename T>
+T ClampValue(T Value, T Min, T Max)
+{
+	return minimum(Max, maximum(Min, Value));
+}
+
+struct STrailPixelGrid
+{
+	float m_ScreenX0;
+	float m_ScreenY0;
+	float m_PixelSizeX;
+	float m_PixelSizeY;
+};
+
+STrailPixelGrid GetTrailPixelGrid(const IGraphics *pGraphics)
+{
+	float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
+	pGraphics->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
+	return {ScreenX0, ScreenY0,
+		(ScreenX1 - ScreenX0) / maximum(1, pGraphics->ScreenWidth()),
+		(ScreenY1 - ScreenY0) / maximum(1, pGraphics->ScreenHeight())};
+}
+
+vec2 SnapTrailPoint(const STrailPixelGrid &Grid, vec2 Pos)
+{
+	return vec2(
+		Grid.m_ScreenX0 + roundf((Pos.x - Grid.m_ScreenX0) / Grid.m_PixelSizeX) * Grid.m_PixelSizeX,
+		Grid.m_ScreenY0 + roundf((Pos.y - Grid.m_ScreenY0) / Grid.m_PixelSizeY) * Grid.m_PixelSizeY);
+}
+}
 
 bool CTrails::ShouldPredictPlayer(int ClientId)
 {
@@ -35,7 +70,9 @@ void CTrails::OnReset()
 
 void CTrails::OnRender()
 {
-	if(!g_Config.m_TcTeeTrail)
+	const bool UseTcTrail = g_Config.m_TcTeeTrail != 0;
+	const bool UsePastaTrail = g_Config.m_PastaTrail != 0;
+	if(!UseTcTrail && !UsePastaTrail)
 		return;
 
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -51,7 +88,7 @@ void CTrails::OnRender()
 		const bool Local = GameClient()->m_Snap.m_LocalClientId == ClientId;
 
 		const bool ZoomAllowed = GameClient()->m_Camera.ZoomAllowed();
-		if(!g_Config.m_TcTeeTrailOthers && !Local)
+		if((UseTcTrail && !g_Config.m_TcTeeTrailOthers && !Local) || (UsePastaTrail && !Local))
 			continue;
 
 		if(!Local && !ZoomAllowed)
@@ -68,7 +105,7 @@ void CTrails::OnRender()
 
 		CTeeRenderInfo TeeInfo = GameClient()->m_aClients[ClientId].m_RenderInfo;
 
-		const bool PredictPlayer = ShouldPredictPlayer(ClientId);
+		const bool PredictPlayer = ShouldPredictPlayer(ClientId) && !(UsePastaTrail && Local);
 		int StartTick;
 		const int GameTick = Client()->GameTick(g_Config.m_ClDummy);
 		const int PredTick = Client()->PredGameTick(g_Config.m_ClDummy);
@@ -95,8 +132,9 @@ void CTrails::OnRender()
 
 		const vec2 CurServerPos = vec2(GameClient()->m_Snap.m_aCharacters[ClientId].m_Cur.m_X, GameClient()->m_Snap.m_aCharacters[ClientId].m_Cur.m_Y);
 		const vec2 PrevServerPos = vec2(GameClient()->m_Snap.m_aCharacters[ClientId].m_Prev.m_X, GameClient()->m_Snap.m_aCharacters[ClientId].m_Prev.m_Y);
+		const vec2 HistoryRenderPos = Local ? GameClient()->m_aClients[ClientId].m_RenderPos : mix(PrevServerPos, CurServerPos, IntraTick);
 		m_History[ClientId][GameTick % 200] = {
-			mix(PrevServerPos, CurServerPos, IntraTick),
+			HistoryRenderPos,
 			GameTick,
 		};
 
@@ -105,17 +143,49 @@ void CTrails::OnRender()
 		// m_History[ClientId][(GameTick + 2) % 200] = m_History[ClientId][GameTick % 200];
 
 		IGraphics::CLineItem LineItem;
-		bool LineMode = g_Config.m_TcTeeTrailWidth == 0;
+		const int TrailWidthConfig = UseTcTrail ? g_Config.m_TcTeeTrailWidth : g_Config.m_PastaTrailWidth;
+		const int PastaTrailType = UsePastaTrail ? g_Config.m_PastaTrailType : 4;
+		const bool SmokeTrail = UsePastaTrail && PastaTrailType == 0;
+		const bool BulletTrail = UsePastaTrail && PastaTrailType == 1;
+		const bool PowerupTrail = UsePastaTrail && PastaTrailType == 2;
+		const bool SparkleTrail = UsePastaTrail && PastaTrailType == 3;
+		const bool TaterTrail = !UsePastaTrail || PastaTrailType == 4;
+		const bool SkipBaseTrail = BulletTrail;
+		bool LineMode = (TrailWidthConfig == 0 || SparkleTrail) && !SkipBaseTrail;
 
-		float Alpha = g_Config.m_TcTeeTrailAlpha / 100.0f;
+		float Alpha = (UseTcTrail ? g_Config.m_TcTeeTrailAlpha : g_Config.m_PastaTrailAlpha) / 100.0f;
 		// Taken from players.cpp
 		if(ClientId == -2)
 			Alpha *= g_Config.m_ClRaceGhostAlpha / 100.0f;
 		else if(ClientId < 0 || GameClient()->IsOtherTeam(ClientId))
 			Alpha *= g_Config.m_ClShowOthersAlpha / 100.0f;
 
-		int TrailLength = g_Config.m_TcTeeTrailLength;
-		float Width = g_Config.m_TcTeeTrailWidth;
+		int TrailLength = UseTcTrail ? g_Config.m_TcTeeTrailLength : g_Config.m_PastaTrailLength;
+		float Width = TrailWidthConfig;
+		if(SmokeTrail)
+		{
+			Width *= 1.4f;
+			Alpha *= 0.75f;
+		}
+		else if(BulletTrail)
+		{
+			Width = maximum(1.0f, Width * 0.35f);
+			Alpha = ClampValue(Alpha * 1.15f, 0.0f, 1.0f);
+		}
+		else if(PowerupTrail)
+		{
+			Width *= 1.15f;
+			Alpha = ClampValue(Alpha * 1.1f, 0.0f, 1.0f);
+		}
+		else if(SparkleTrail)
+		{
+			Width = maximum(1.0f, Width * 0.5f);
+			Alpha = ClampValue(Alpha * 1.05f, 0.0f, 1.0f);
+		}
+		else if(TaterTrail)
+		{
+			Width *= 1.0f;
+		}
 
 		static std::vector<CTrailPart> s_Trail;
 		s_Trail.clear();
@@ -165,7 +235,7 @@ void CTrails::OnRender()
 		if(PredictPlayer)
 			s_Trail.at(0).m_Pos = GameClient()->m_aClients[ClientId].m_RenderPos;
 		else
-			s_Trail.at(0).m_Pos = mix(PrevServerPos, CurServerPos, IntraTick);
+			s_Trail.at(0).m_Pos = Local ? GameClient()->m_aClients[ClientId].m_RenderPos : mix(PrevServerPos, CurServerPos, IntraTick);
 
 		if(TrailFull)
 			s_Trail.at(s_Trail.size() - 1).m_Pos = mix(s_Trail.at(s_Trail.size() - 1).m_Pos, s_Trail.at(s_Trail.size() - 2).m_Pos, std::fmod(IntraTick, 1.0f));
@@ -182,10 +252,11 @@ void CTrails::OnRender()
 			else
 				Part.m_Progress = ((float)i + IntraTick - 1.0f) / (Size - 1.0f);
 
-			switch(g_Config.m_TcTeeTrailColorMode)
+			const int TrailColorMode = UseTcTrail ? g_Config.m_TcTeeTrailColorMode : (g_Config.m_PastaTrailColorRainbow ? COLORMODE_RAINBOW : COLORMODE_SOLID);
+			switch(TrailColorMode)
 			{
 			case COLORMODE_SOLID:
-				Part.m_Col = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_TcTeeTrailColor));
+				Part.m_Col = color_cast<ColorRGBA>(ColorHSLA(UseTcTrail ? g_Config.m_TcTeeTrailColor : g_Config.m_PastaTrailColor));
 				break;
 			case COLORMODE_TEE:
 				if(TeeInfo.m_CustomColoredSkin)
@@ -219,12 +290,16 @@ void CTrails::OnRender()
 			}
 
 			Part.m_Col.a = Alpha;
-			if(g_Config.m_TcTeeTrailFade)
+			if((UseTcTrail && g_Config.m_TcTeeTrailFade) || (UsePastaTrail && (g_Config.m_PastaTrailFade || SmokeTrail || SparkleTrail)))
 				Part.m_Col.a *= 1.0 - Part.m_Progress;
 
 			Part.m_Width = Width;
-			if(g_Config.m_TcTeeTrailTaper)
+			if((UseTcTrail && g_Config.m_TcTeeTrailTaper) || (UsePastaTrail && (g_Config.m_PastaTrailLowTaper || SmokeTrail)))
 				Part.m_Width = Width * (1.0 - Part.m_Progress);
+			else if(PowerupTrail)
+				Part.m_Width = Width * (1.15f - Part.m_Progress * 0.35f);
+			else if(BulletTrail)
+				Part.m_Width = maximum(1.0f, Width * (1.0f - Part.m_Progress * 0.55f));
 		}
 
 		// Remove duplicate elements (those with same Pos)
@@ -233,6 +308,14 @@ void CTrails::OnRender()
 
 		if((int)s_Trail.size() < 3)
 			continue;
+
+		const STrailPixelGrid PixelGrid = GetTrailPixelGrid(Graphics());
+		for(auto &Part : s_Trail)
+		{
+			Part.m_Pos = SnapTrailPoint(PixelGrid, Part.m_Pos);
+			Part.m_Top = SnapTrailPoint(PixelGrid, Part.m_Top);
+			Part.m_Bot = SnapTrailPoint(PixelGrid, Part.m_Bot);
+		}
 
 		// Calculate the widths
 		for(int i = 0; i < (int)s_Trail.size(); i++)
@@ -306,64 +389,118 @@ void CTrails::OnRender()
 			}
 		}
 
-		if(LineMode)
-			Graphics()->LinesBegin();
-		else
-			Graphics()->QuadsBegin();
-
-		// Draw the trail
-		for(int i = 0; i < (int)s_Trail.size() - 1; i++)
+		if(!SkipBaseTrail)
 		{
-			const CTrailPart &Part = s_Trail.at(i);
-			const CTrailPart &NextPart = s_Trail.at(i + 1);
-			const float Dist = distance(Part.m_UnmovedPos, NextPart.m_UnmovedPos);
-
-			const float MaxDiff = 120.0f;
-			if(i > 0)
-			{
-				const CTrailPart &PrevPart = s_Trail.at(i - 1);
-				float PrevDist = distance(PrevPart.m_UnmovedPos, Part.m_UnmovedPos);
-				if(std::abs(Dist - PrevDist) > MaxDiff)
-					continue;
-			}
-			if(i < (int)s_Trail.size() - 2)
-			{
-				const CTrailPart &NextNextPart = s_Trail.at(i + 2);
-				float NextDist = distance(NextPart.m_UnmovedPos, NextNextPart.m_UnmovedPos);
-				if(std::abs(Dist - NextDist) > MaxDiff)
-					continue;
-			}
-
 			if(LineMode)
-			{
-				Graphics()->SetColor(Part.m_Col);
-				LineItem = IGraphics::CLineItem(Part.m_Pos.x, Part.m_Pos.y, NextPart.m_Pos.x, NextPart.m_Pos.y);
-				Graphics()->LinesDraw(&LineItem, 1);
-			}
+				Graphics()->LinesBegin();
 			else
+				Graphics()->QuadsBegin();
+
+			// Draw the trail
+			for(int i = 0; i < (int)s_Trail.size() - 1; i++)
 			{
-				vec2 Top, Bot;
-				if(Part.m_Flip)
+				const CTrailPart &Part = s_Trail.at(i);
+				const CTrailPart &NextPart = s_Trail.at(i + 1);
+				if(SparkleTrail && i % 2 != 0)
+					continue;
+
+				const float Dist = distance(Part.m_UnmovedPos, NextPart.m_UnmovedPos);
+
+				const float MaxDiff = 120.0f;
+				if(i > 0)
 				{
-					Top = Part.m_Bot;
-					Bot = Part.m_Top;
+					const CTrailPart &PrevPart = s_Trail.at(i - 1);
+					float PrevDist = distance(PrevPart.m_UnmovedPos, Part.m_UnmovedPos);
+					if(std::abs(Dist - PrevDist) > MaxDiff)
+						continue;
+				}
+				if(i < (int)s_Trail.size() - 2)
+				{
+					const CTrailPart &NextNextPart = s_Trail.at(i + 2);
+					float NextDist = distance(NextPart.m_UnmovedPos, NextNextPart.m_UnmovedPos);
+					if(std::abs(Dist - NextDist) > MaxDiff)
+						continue;
+				}
+
+				if(LineMode)
+				{
+					Graphics()->SetColor(Part.m_Col);
+					LineItem = IGraphics::CLineItem(Part.m_Pos.x, Part.m_Pos.y, NextPart.m_Pos.x, NextPart.m_Pos.y);
+					Graphics()->LinesDraw(&LineItem, 1);
 				}
 				else
 				{
-					Top = Part.m_Top;
-					Bot = Part.m_Bot;
+					vec2 Top, Bot;
+					if(Part.m_Flip)
+					{
+						Top = Part.m_Bot;
+						Bot = Part.m_Top;
+					}
+					else
+					{
+						Top = Part.m_Top;
+						Bot = Part.m_Bot;
+					}
+
+					Graphics()->SetColor4(NextPart.m_Col, NextPart.m_Col, Part.m_Col, Part.m_Col);
+					IGraphics::CFreeformItem FreeformItem(NextPart.m_Top, NextPart.m_Bot, Top, Bot);
+					Graphics()->QuadsDrawFreeform(&FreeformItem, 1);
+				}
+			}
+			if(LineMode)
+				Graphics()->LinesEnd();
+			else
+				Graphics()->QuadsEnd();
+		}
+
+		if(UsePastaTrail && (SmokeTrail || BulletTrail || PowerupTrail || SparkleTrail))
+		{
+			IGraphics::CTextureHandle Texture;
+			if(SmokeTrail)
+				Texture = GameClient()->m_ParticlesSkin.m_aSpriteParticles[SPRITE_PART_SMOKE - SPRITE_PART_SLICE];
+			else if(BulletTrail)
+				Texture = GameClient()->m_GameSkin.m_aSpriteWeaponProjectiles[WEAPON_GUN];
+			else if(PowerupTrail)
+				Texture = GameClient()->m_ParticlesSkin.m_aSpriteParticles[SPRITE_PART_BALL - SPRITE_PART_SLICE];
+			else
+				Texture = GameClient()->m_ExtrasSkin.m_aSpriteParticles[SPRITE_PART_SPARKLE - SPRITE_PART_SNOWFLAKE];
+
+			Graphics()->TextureSet(Texture);
+			Graphics()->QuadsBegin();
+			for(int i = 0; i < (int)s_Trail.size(); ++i)
+			{
+				const CTrailPart &Part = s_Trail.at(i);
+				if((SmokeTrail && i % 2 != 0) || (PowerupTrail && i % 3 != 0) || (SparkleTrail && i % 2 != 0))
+					continue;
+
+				ColorRGBA StampColor = Part.m_Col;
+				if(PowerupTrail)
+				{
+					StampColor.r = minimum(1.0f, StampColor.r * 1.1f + 0.2f);
+					StampColor.g = minimum(1.0f, StampColor.g * 1.1f + 0.2f);
+					StampColor.b = minimum(1.0f, StampColor.b * 1.1f + 0.2f);
+					StampColor.a *= 0.9f;
+				}
+				else if(SparkleTrail)
+				{
+					StampColor.a *= 0.8f;
 				}
 
-				Graphics()->SetColor4(NextPart.m_Col, NextPart.m_Col, Part.m_Col, Part.m_Col);
-				// IGraphics::CFreeformItem FreeformItem(Top, Bot, NextPart.m_Top, NextPart.m_Bot);
-				IGraphics::CFreeformItem FreeformItem(NextPart.m_Top, NextPart.m_Bot, Top, Bot);
-
-				Graphics()->QuadsDrawFreeform(&FreeformItem, 1);
+				Graphics()->SetColor(StampColor);
+				float Size = maximum(4.0f, Part.m_Width * (SmokeTrail ? 1.35f : (PowerupTrail ? 1.2f : (BulletTrail ? 1.6f : 0.9f))));
+				if(BulletTrail)
+				{
+					vec2 Dir = i + 1 < (int)s_Trail.size() ? normalize(Part.m_Pos - s_Trail.at(i + 1).m_Pos) : vec2(1.0f, 0.0f);
+					if(length(Dir) < 0.001f)
+						Dir = vec2(1.0f, 0.0f);
+					Graphics()->QuadsSetRotation(angle(Dir));
+					Size = maximum(6.0f, Part.m_Width * 2.25f);
+				}
+				IGraphics::CQuadItem QuadItem(Part.m_Pos.x, Part.m_Pos.y, Size, Size);
+				Graphics()->QuadsDraw(&QuadItem, 1);
 			}
-		}
-		if(LineMode)
-			Graphics()->LinesEnd();
-		else
+			Graphics()->QuadsSetRotation(0.0f);
 			Graphics()->QuadsEnd();
+		}
 	}
 }

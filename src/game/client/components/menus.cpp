@@ -57,6 +57,76 @@ ColorRGBA CMenus::ms_ColorTabbarHoverIngame;
 float CMenus::ms_ButtonHeight = 25.0f;
 float CMenus::ms_ListheaderHeight = 17.0f;
 
+void CMenus::PastaTasSaveReplay()
+{
+	GameClient()->m_PastaTas.SaveReplay();
+}
+
+void CMenus::PastaTasLoadSelectedReplay()
+{
+	GameClient()->m_PastaTas.LoadSelectedReplay();
+}
+
+void CMenus::PastaTasValidateReplay()
+{
+	GameClient()->m_PastaTas.ValidateReplay();
+}
+
+void CMenus::PastaTasReportReplayTime()
+{
+	GameClient()->m_PastaTas.ReportReplayTime();
+}
+
+void CMenus::PastaTasRemoveUseless()
+{
+	GameClient()->m_PastaTas.RemoveUseless();
+}
+
+void CMenus::PastaTasSyncNow()
+{
+	GameClient()->m_PastaTas.SyncNow();
+}
+
+void CMenus::PastaFentSaveReplay()
+{
+	GameClient()->m_PastaFent.SaveCurrentReplay();
+}
+
+namespace
+{
+bool UsePastaMenuTheme()
+{
+	return g_Config.m_PastaCustomTheme != 0;
+}
+
+ColorRGBA GetPastaMenuAccentColor()
+{
+	return color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PastaRainbowMenu ? g_Config.m_UiColor : g_Config.m_PastaCustomAccentColor, true));
+}
+
+ColorRGBA GetPastaMenuBackgroundColor()
+{
+	ColorRGBA Bg = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PastaCustomBgColor, true));
+	Bg.a = 1.0f;
+	return Bg;
+}
+
+ColorRGBA MixPastaMenuColors(const ColorRGBA &Bg, const ColorRGBA &Accent, float AccentAmount, float Alpha)
+{
+	return ColorRGBA(
+		mix(Bg.r, Accent.r, AccentAmount),
+		mix(Bg.g, Accent.g, AccentAmount),
+		mix(Bg.b, Accent.b, AccentAmount),
+		Alpha);
+}
+
+bool IsNeutralMenuColor(const ColorRGBA &Color)
+{
+	const float MaxDiff = 0.02f;
+	return absolute(Color.r - Color.g) <= MaxDiff && absolute(Color.g - Color.b) <= MaxDiff;
+}
+}
+
 CMenus::CMenus()
 {
 	m_Popup = POPUP_NONE;
@@ -123,13 +193,24 @@ int CMenus::DoButton_Toggle(const void *pId, int Checked, const CUIRect *pRect, 
 int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText, int Checked, const CUIRect *pRect, const unsigned Flags, const char *pImageName, int Corners, float Rounding, float FontFactor, ColorRGBA Color)
 {
 	CUIRect Text = *pRect;
+	ColorRGBA DrawColor = Color;
+
+	if(UsePastaMenuTheme() && IsNeutralMenuColor(Color))
+	{
+		const ColorRGBA Bg = GetPastaMenuBackgroundColor();
+		const ColorRGBA Accent = GetPastaMenuAccentColor();
+		const bool Hovered = Ui()->HotItem() == pButtonContainer;
+		const float AccentAmount = Checked ? 0.42f : (Hovered ? 0.28f : 0.18f);
+		const float Alpha = (Checked ? 0.85f : (Hovered ? 0.72f : 0.62f)) * minimum(1.0f, maximum(0.25f, Color.a * 1.5f));
+		DrawColor = MixPastaMenuColors(Bg, Accent, AccentAmount, Alpha);
+	}
 
 	if(Checked)
-		Color = ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
+		DrawColor = UsePastaMenuTheme() && IsNeutralMenuColor(Color) ? DrawColor : ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
 	else // TClient, why was this not here? ig they never use "checked" anywhere important
-		Color.a *= Ui()->ButtonColorMul(pButtonContainer);
+		DrawColor.a *= Ui()->ButtonColorMul(pButtonContainer);
 
-	pRect->Draw(Color, Corners, Rounding);
+	pRect->Draw(DrawColor, Corners, Rounding);
 
 	if(pImageName)
 	{
@@ -285,7 +366,14 @@ int CMenus::DoButton_CheckBox_Common(const void *pId, const char *pText, const c
 	Label.VSplitLeft(5.0f, nullptr, &Label);
 
 	Box.Margin(2.0f, &Box);
-	Box.Draw(ColorRGBA(1, 1, 1, 0.25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3.0f);
+	ColorRGBA CheckBoxColor(1, 1, 1, 0.25f * Ui()->ButtonColorMul(pId));
+	if(UsePastaMenuTheme())
+	{
+		const ColorRGBA Bg = GetPastaMenuBackgroundColor();
+		const ColorRGBA Accent = GetPastaMenuAccentColor();
+		CheckBoxColor = MixPastaMenuColors(Bg, Accent, Ui()->HotItem() == pId ? 0.28f : 0.16f, 0.7f * Ui()->ButtonColorMul(pId));
+	}
+	Box.Draw(CheckBoxColor, IGraphics::CORNER_ALL, 3.0f);
 
 	const bool Checkable = *pBoxText == 'X';
 	if(Checkable)
@@ -2543,26 +2631,50 @@ void CMenus::UpdateColors()
 {
 	ms_GuiColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
 
-	ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
-	ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
-	ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
+	if(UsePastaMenuTheme())
+	{
+		const ColorRGBA Bg = GetPastaMenuBackgroundColor();
+		const ColorRGBA Accent = GetPastaMenuAccentColor();
+
+		ms_GuiColor = MixPastaMenuColors(Bg, Accent, 0.12f, 1.0f);
+		ms_ColorTabbarInactiveOutgame = MixPastaMenuColors(Bg, Accent, 0.12f, 0.78f);
+		ms_ColorTabbarActiveOutgame = MixPastaMenuColors(Bg, Accent, 0.30f, 0.92f);
+		ms_ColorTabbarHoverOutgame = MixPastaMenuColors(Bg, Accent, 0.22f, 0.86f);
+	}
+	else
+	{
+		ms_ColorTabbarInactiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);
+		ms_ColorTabbarActiveOutgame = ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f);
+		ms_ColorTabbarHoverOutgame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f);
+	}
 
 	const float ColorIngameScaleI = 0.5f;
 	const float ColorIngameScaleA = 0.2f;
 
-	ms_ColorTabbarInactiveIngame = ColorRGBA(
-		ms_GuiColor.r * ColorIngameScaleI,
-		ms_GuiColor.g * ColorIngameScaleI,
-		ms_GuiColor.b * ColorIngameScaleI,
-		ms_GuiColor.a * 0.8f);
+	if(UsePastaMenuTheme())
+	{
+		const ColorRGBA Bg = GetPastaMenuBackgroundColor();
+		const ColorRGBA Accent = GetPastaMenuAccentColor();
+		ms_ColorTabbarInactiveIngame = MixPastaMenuColors(Bg, Accent, 0.10f, 0.72f);
+		ms_ColorTabbarActiveIngame = MixPastaMenuColors(Bg, Accent, 0.24f, 0.88f);
+		ms_ColorTabbarHoverIngame = MixPastaMenuColors(Bg, Accent, 0.18f, 0.82f);
+	}
+	else
+	{
+		ms_ColorTabbarInactiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleI,
+			ms_GuiColor.g * ColorIngameScaleI,
+			ms_GuiColor.b * ColorIngameScaleI,
+			ms_GuiColor.a * 0.8f);
 
-	ms_ColorTabbarActiveIngame = ColorRGBA(
-		ms_GuiColor.r * ColorIngameScaleA,
-		ms_GuiColor.g * ColorIngameScaleA,
-		ms_GuiColor.b * ColorIngameScaleA,
-		ms_GuiColor.a);
+		ms_ColorTabbarActiveIngame = ColorRGBA(
+			ms_GuiColor.r * ColorIngameScaleA,
+			ms_GuiColor.g * ColorIngameScaleA,
+			ms_GuiColor.b * ColorIngameScaleA,
+			ms_GuiColor.a);
 
-	ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
+		ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
+	}
 }
 
 void CMenus::RenderBackground()
@@ -2576,7 +2688,8 @@ void CMenus::RenderBackground()
 	// render background color
 	Graphics()->TextureClear();
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(ms_GuiColor.WithAlpha(1.0f));
+	const ColorRGBA BackgroundColor = UsePastaMenuTheme() ? GetPastaMenuBackgroundColor() : ms_GuiColor.WithAlpha(1.0f);
+	Graphics()->SetColor(BackgroundColor);
 	const IGraphics::CQuadItem BackgroundQuadItem = IGraphics::CQuadItem(0, 0, ScreenWidth, ScreenHeight);
 	Graphics()->QuadsDrawTL(&BackgroundQuadItem, 1);
 	Graphics()->QuadsEnd();
@@ -2584,7 +2697,13 @@ void CMenus::RenderBackground()
 	// render the tiles
 	Graphics()->TextureClear();
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
+	if(UsePastaMenuTheme())
+	{
+		const ColorRGBA Accent = GetPastaMenuAccentColor();
+		Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.07f);
+	}
+	else
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
 	const float Size = 15.0f;
 	const float OffsetTime = std::fmod(Client()->GlobalTime() * 0.15f, 2.0f);
 	IGraphics::CQuadItem aCheckerItems[64];

@@ -114,7 +114,7 @@ float CPlayers::GetPlayerTargetAngle(
 		!GameClient()->m_Snap.m_SpecInfo.m_Active && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
 		// TClient
-		vec2 Direction = GameClient()->m_Controls.m_aMousePos[g_Config.m_ClDummy];
+		vec2 Direction = GameClient()->m_Controls.GetRenderMousePos(g_Config.m_ClDummy);
 		if(g_Config.m_TcScaleMouseDistance)
 		{
 			const int MaxDistance = g_Config.m_ClDyncam ? g_Config.m_ClDyncamMaxDistance : g_Config.m_ClMouseMaxDistance;
@@ -180,9 +180,12 @@ void CPlayers::RenderHookCollLine(
 	Prev = *pPrevChar;
 	Player = *pPlayerChar;
 
-	dbg_assert(in_range(ClientId, MAX_CLIENTS - 1), "invalid client id (%d)", ClientId);
+	if(ClientId != -3)
+		dbg_assert(in_range(ClientId, MAX_CLIENTS - 1), "invalid client id (%d)", ClientId);
 
 	if(!GameClient()->m_GameInfo.m_AllowHookColl)
+		return;
+	if(ClientId == -3)
 		return;
 
 	bool Local = GameClient()->m_Snap.m_LocalClientId == ClientId;
@@ -487,6 +490,8 @@ void CPlayers::RenderHook(
 
 	bool OtherTeam = GameClient()->IsOtherTeam(ClientId);
 	float Alpha = (OtherTeam || ClientId < 0) ? g_Config.m_ClShowOthersAlpha / 100.0f : 1.0f;
+	if(ClientId == -3)
+		Alpha = 1.0f;
 	if(ClientId == -2) // ghost
 		Alpha = g_Config.m_ClRaceGhostAlpha / 100.0f;
 
@@ -500,7 +505,7 @@ void CPlayers::RenderHook(
 
 	// draw hook
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
-	if(ClientId < 0)
+	if(ClientId < 0 && ClientId != -3)
 		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.5f);
 
 	vec2 Pos = Position;
@@ -529,7 +534,7 @@ void CPlayers::RenderHook(
 	// TClient
 	bool Local = GameClient()->m_Snap.m_LocalClientId == ClientId;
 	bool DontOthers = !g_Config.m_TcRainbowOthers && !Local;
-	if(g_Config.m_TcRainbowHook && !DontOthers)
+	if((g_Config.m_TcRainbowHook || g_Config.m_PastaCustomColorHook) && !DontOthers)
 		Graphics()->SetColor(GameClient()->m_Rainbow.m_RainbowColor.WithAlpha(Alpha));
 
 	Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, HookPos.x, HookPos.y);
@@ -552,7 +557,7 @@ void CPlayers::RenderHook(
 	Graphics()->QuadsSetRotation(0);
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-	if(g_Config.m_TcRainbowHook && !DontOthers)
+	if((g_Config.m_TcRainbowHook || g_Config.m_PastaCustomColorHook) && !DontOthers)
 		Graphics()->SetColor(GameClient()->m_Rainbow.m_RainbowColor.WithAlpha(Alpha));
 
 	RenderHand(&RenderInfo, Position, normalize(HookPos - Pos), -pi / 2, vec2(20, 0), Alpha);
@@ -582,6 +587,8 @@ void CPlayers::RenderPlayer(
 	float Alpha = 1.0f;
 	if(OtherTeam || ClientId < 0)
 		Alpha = g_Config.m_ClShowOthersAlpha / 100.0f;
+	if(ClientId == -3)
+		Alpha = 1.0f;
 	else if(g_Config.m_TcShowOthersGhosts && !Local && !Spec)
 		Alpha = g_Config.m_TcPredGhostsAlpha / 100.0f;
 
@@ -736,7 +743,7 @@ void CPlayers::RenderPlayer(
 
 			// TClient
 			const bool DontOthers = !g_Config.m_TcRainbowOthers && !Local;
-			if(g_Config.m_TcRainbowWeapon && !DontOthers)
+			if((g_Config.m_TcRainbowWeapon || g_Config.m_PastaCustomColorWeapon) && !DontOthers)
 				Graphics()->SetColor(GameClient()->m_Rainbow.m_RainbowColor.WithAlpha(Alpha));
 
 			if(g_Config.m_TcRenderWeaponsAsGun && (Player.m_Weapon == WEAPON_SHOTGUN || Player.m_Weapon == WEAPON_GRENADE || Player.m_Weapon == WEAPON_LASER))
@@ -1528,6 +1535,7 @@ void CPlayers::OnRender()
 
 			Frozen = GameClient()->m_Snap.m_aCharacters[i].m_HasExtendedData && GameClient()->m_Snap.m_aCharacters[i].m_ExtendedData.m_FreezeEnd != 0;
 		}
+		Frozen = Frozen || (aRenderInfo[i].m_TeeRenderFlags & TEE_EFFECT_FROZEN) != 0;
 
 		// TClient
 		if(g_Config.m_TcFrozenKatana > 0 && Frozen)
@@ -1563,6 +1571,44 @@ void CPlayers::OnRender()
 				}
 			}
 		}
+
+		if(Frozen && g_Config.m_PastaCustomFrozenColor)
+		{
+			const ColorRGBA FrozenColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_PastaCustomFrozenColorValue).UnclampLighting(ColorHSLA::DARKEST_LGT));
+			aRenderInfo[i].ApplyColors(true, g_Config.m_PastaCustomFrozenColorValue, g_Config.m_PastaCustomFrozenColorValue);
+			aRenderInfo[i].m_ColorBody = FrozenColor;
+			aRenderInfo[i].m_ColorFeet = FrozenColor;
+
+			for(auto &Sixup : aRenderInfo[i].m_aSixup)
+			{
+				Sixup.m_aUseCustomColors[protocol7::SKINPART_BODY] = true;
+				Sixup.m_aUseCustomColors[protocol7::SKINPART_FEET] = true;
+				Sixup.m_aColors[protocol7::SKINPART_BODY] = FrozenColor;
+				Sixup.m_aColors[protocol7::SKINPART_FEET] = FrozenColor;
+			}
+		}
+
+		if(g_Config.m_PastaAimbot && g_Config.m_PastaAimbotTargetGlow)
+		{
+			const int Dummy = g_Config.m_ClDummy;
+			const bool WeaponTarget = GameClient()->m_Controls.m_aPastaAimbotWeaponTargetId[Dummy] == i;
+			const bool HookTarget = GameClient()->m_Controls.m_aPastaAimbotHookTargetId[Dummy] == i;
+			if(WeaponTarget || HookTarget)
+			{
+				const ColorRGBA GlowColor = HookTarget ? ColorRGBA(1.0f, 0.2f, 0.18f, 1.0f) : ColorRGBA(1.0f, 0.62f, 0.12f, 1.0f);
+				const unsigned Packed = color_cast<ColorHSLA>(GlowColor).Pack(false);
+				aRenderInfo[i].ApplyColors(true, Packed, Packed);
+				aRenderInfo[i].m_ColorBody = GlowColor;
+				aRenderInfo[i].m_ColorFeet = GlowColor;
+				for(auto &Sixup : aRenderInfo[i].m_aSixup)
+				{
+					Sixup.m_aUseCustomColors[protocol7::SKINPART_BODY] = true;
+					Sixup.m_aUseCustomColors[protocol7::SKINPART_FEET] = true;
+					Sixup.m_aColors[protocol7::SKINPART_BODY] = GlowColor;
+					Sixup.m_aColors[protocol7::SKINPART_FEET] = GlowColor;
+				}
+			}
+		}
 	}
 
 	// get screen edges to avoid rendering offscreen
@@ -1590,8 +1636,11 @@ void CPlayers::OnRender()
 	}
 	if(LocalClientId != -1 && IsPlayerInfoAvailable(LocalClientId))
 	{
-		const CGameClient::CClientData *pLocalClientData = &GameClient()->m_aClients[LocalClientId];
-		RenderHook(&pLocalClientData->m_RenderPrev, &pLocalClientData->m_RenderCur, &aRenderInfo[LocalClientId], LocalClientId);
+		if(!(GameClient()->m_PastaTas.IsRecording() && GameClient()->m_PastaTas.IsWorldInitialized() && !GameClient()->m_Snap.m_SpecInfo.m_Active))
+		{
+			const CGameClient::CClientData *pLocalClientData = &GameClient()->m_aClients[LocalClientId];
+			RenderHook(&pLocalClientData->m_RenderPrev, &pLocalClientData->m_RenderCur, &aRenderInfo[LocalClientId], LocalClientId);
+		}
 	}
 
 	// render spectating players
@@ -1616,6 +1665,8 @@ void CPlayers::OnRender()
 
 	for(int ClientId = 0; ClientId < MAX_CLIENTS; ClientId++)
 	{
+		if(ClientId == LocalClientId && GameClient()->m_PastaTas.IsRecording() && GameClient()->m_PastaTas.IsWorldInitialized() && !GameClient()->m_Snap.m_SpecInfo.m_Active)
+			continue;
 		if(ClientId == RenderLastId || !IsPlayerInfoAvailable(ClientId))
 		{
 			continue;
@@ -1649,12 +1700,16 @@ void CPlayers::OnRender()
 
 		RenderPlayer(&GameClient()->m_aClients[ClientId].m_RenderPrev, &GameClient()->m_aClients[ClientId].m_RenderCur, &aRenderInfo[ClientId], ClientId);
 	}
-	if(RenderLastId != -1 && IsPlayerInfoAvailable(RenderLastId))
+	if(RenderLastId != -1 && IsPlayerInfoAvailable(RenderLastId) &&
+		!(RenderLastId == LocalClientId && GameClient()->m_PastaTas.IsRecording() && GameClient()->m_PastaTas.IsWorldInitialized() && !GameClient()->m_Snap.m_SpecInfo.m_Active))
 	{
 		const CGameClient::CClientData *pClientData = &GameClient()->m_aClients[RenderLastId];
 		RenderHookCollLine(&pClientData->m_RenderPrev, &pClientData->m_RenderCur, RenderLastId);
 		RenderPlayer(&pClientData->m_RenderPrev, &pClientData->m_RenderCur, &aRenderInfo[RenderLastId], RenderLastId);
 	}
+
+	if(GameClient()->m_PastaTas.IsRecording() && GameClient()->m_PastaTas.IsWorldInitialized() && !GameClient()->m_Snap.m_SpecInfo.m_Active)
+		GameClient()->m_PastaTas.RenderWorldCharacters();
 }
 
 void CPlayers::CreateNinjaTeeRenderInfo()

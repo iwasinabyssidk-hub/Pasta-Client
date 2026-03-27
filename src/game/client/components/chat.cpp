@@ -28,6 +28,39 @@
 
 char CChat::ms_aDisplayText[MAX_LINE_LENGTH] = "";
 
+namespace
+{
+void BuildPastaFancyChatText(char *pDst, int DstSize, const char *pSrc)
+{
+	pDst[0] = '\0';
+	const char *pTrimmed = str_utf8_skip_whitespaces(pSrc);
+	if(*pTrimmed == '/' || *pTrimmed == '\\')
+	{
+		str_copy(pDst, pSrc, DstSize);
+		return;
+	}
+
+	const char *pCursor = pSrc;
+	while(*pCursor != '\0' && str_length(pDst) < DstSize - 8)
+	{
+		int Codepoint = str_utf8_decode(&pCursor);
+		if(Codepoint == 0)
+			break;
+		if(Codepoint >= 'A' && Codepoint <= 'Z')
+			Codepoint = 0xFF21 + (Codepoint - 'A');
+		else if(Codepoint >= 'a' && Codepoint <= 'z')
+			Codepoint = 0xFF41 + (Codepoint - 'a');
+		else if(Codepoint >= '0' && Codepoint <= '9')
+			Codepoint = 0xFF10 + (Codepoint - '0');
+
+		char aEncoded[8] = {'\0'};
+		const int Length = str_utf8_encode(aEncoded, Codepoint);
+		aEncoded[Length] = '\0';
+		str_append(pDst, aEncoded, DstSize);
+	}
+}
+}
+
 CChat::CLine::CLine()
 {
 	m_TextContainerIndex.Reset();
@@ -1469,8 +1502,16 @@ void CChat::EnsureCoherentWidth() const
 
 void CChat::SendChat(int Team, const char *pLine)
 {
+	char aFancyBuffer[MAX_LINE_LENGTH * 3];
+	const char *pSendLine = pLine;
+	if(g_Config.m_PastaFancyChatFont)
+	{
+		BuildPastaFancyChatText(aFancyBuffer, sizeof(aFancyBuffer), pLine);
+		pSendLine = aFancyBuffer;
+	}
+
 	// don't send empty messages
-	if(*str_utf8_skip_whitespaces(pLine) == '\0')
+	if(*str_utf8_skip_whitespaces(pSendLine) == '\0')
 		return;
 
 	m_LastChatSend = time();
@@ -1480,7 +1521,7 @@ void CChat::SendChat(int Team, const char *pLine)
 		protocol7::CNetMsg_Cl_Say Msg7;
 		Msg7.m_Mode = Team == 1 ? protocol7::CHAT_TEAM : protocol7::CHAT_ALL;
 		Msg7.m_Target = -1;
-		Msg7.m_pMessage = pLine;
+		Msg7.m_pMessage = pSendLine;
 		Client()->SendPackMsgActive(&Msg7, MSGFLAG_VITAL, true);
 		return;
 	}
@@ -1488,7 +1529,7 @@ void CChat::SendChat(int Team, const char *pLine)
 	// send chat message
 	CNetMsg_Cl_Say Msg;
 	Msg.m_Team = Team;
-	Msg.m_pMessage = pLine;
+	Msg.m_pMessage = pSendLine;
 	Client()->SendPackMsgActive(&Msg, MSGFLAG_VITAL);
 }
 

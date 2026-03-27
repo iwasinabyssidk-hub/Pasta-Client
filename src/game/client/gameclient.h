@@ -73,6 +73,11 @@
 #include "components/tclient/moving_tiles.h"
 #include "components/tclient/mumble.h"
 #include "components/tclient/outlines.h"
+#include "components/tclient/pasta_fent.h"
+#include "components/tclient/pasta_misc.h"
+#include "components/tclient/pasta_pilot.h"
+#include "components/tclient/pasta_tas.h"
+#include "components/tclient/pasta_visuals.h"
 #include "components/tclient/pet.h"
 #include "components/tclient/player_indicator.h"
 #include "components/tclient/rainbow.h"
@@ -221,6 +226,11 @@ public:
 	CBindWheel m_BindWheel;
 	CBgDraw m_BgDraw;
 	CTClient m_TClient;
+	CPastaMisc m_PastaMisc;
+	CPastaFent m_PastaFent;
+	CPastaPilot m_PastaPilot;
+	CPastaTas m_PastaTas;
+	CPastaVisuals m_PastaVisuals;
 	CTrails m_Trails;
 	CTranslate m_Translate;
 	CPet m_Pet;
@@ -286,6 +296,7 @@ private:
 	int m_aCheckInfo[NUM_DUMMIES];
 
 	char m_aDDNetVersionStr[64];
+	mutable char m_aPastaSpoofVersionStr[64];
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 	static void ConReadyChange7(IConsole::IResult *pResult, void *pUserData);
