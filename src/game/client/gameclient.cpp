@@ -178,11 +178,19 @@ void CGameClient::OnConsoleInit()
 					      &m_BindWheel, // TClient
 					      &m_WarList, // TClient
 					      &m_StatusBar, // TClient
+
+						  &m_Aimbot,
+						  &m_AutoAled,
+						  &m_AutoEdge,
+						  &m_AvoidFreeze,
+						  &m_LaserUnfreeze,
+
 					      &m_PastaMisc, // Pasta
 					      &m_PastaFent, // Pasta
 					      &m_PastaPilot, // Pasta
 					      &m_PastaTas, // Pasta
 					      &m_PastaVisuals, // Pasta
+
 					      &m_InfoMessages,
 					      &m_Chat,
 					      &m_Broadcast,
