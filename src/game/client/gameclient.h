@@ -92,6 +92,12 @@
 #include "components/touch_controls.h"
 #include "components/voting.h"
 
+#include "components/pasta/aimbot.h"
+#include "components/pasta/autoaled.h"
+#include "components/pasta/autoedge.h"
+#include "components/pasta/avoidfreeze.h"
+#include "components/pasta/laserunfreeze.h"
+
 #include <memory>
 #include <vector>
 
@@ -226,11 +232,19 @@ public:
 	CBindWheel m_BindWheel;
 	CBgDraw m_BgDraw;
 	CTClient m_TClient;
+
+	CAimbot m_Aimbot;
+	CAutoAled m_AutoAled;
+	CAutoEdge m_AutoEdge;
+	CAvoidFreeze m_AvoidFreeze;
+	CLaserUnfreeze m_LaserUnfreeze;
+
 	CPastaMisc m_PastaMisc;
 	CPastaFent m_PastaFent;
 	CPastaPilot m_PastaPilot;
 	CPastaTas m_PastaTas;
 	CPastaVisuals m_PastaVisuals;
+
 	CTrails m_Trails;
 	CTranslate m_Translate;
 	CPet m_Pet;

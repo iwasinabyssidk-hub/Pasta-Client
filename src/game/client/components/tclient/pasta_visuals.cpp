@@ -874,8 +874,8 @@ void CPastaVisuals::RenderAimbotOverlay()
 			vSegments.clear();
 		};
 
-		AddTargetBox(GameClient()->m_Controls.m_aPastaAimbotHookTargetId[Dummy], ColorRGBA(1.0f, 0.25f, 0.2f, 0.95f));
-		AddTargetBox(GameClient()->m_Controls.m_aPastaAimbotWeaponTargetId[Dummy], ColorRGBA(1.0f, 0.65f, 0.15f, 0.95f));
+		AddTargetBox(GameClient()->m_Aimbot.m_HookTargetId[Dummy], ColorRGBA(1.0f, 0.25f, 0.2f, 0.95f));
+		AddTargetBox(GameClient()->m_Aimbot.m_WeaponTargetId[Dummy], ColorRGBA(1.0f, 0.65f, 0.15f, 0.95f));
 	}
 
 	RenderLineSegments(Graphics(), vHookFovSegments, GetPastaOverlayColorForSlot(-1), 1.35f, GameClient()->m_Camera.m_Zoom);
@@ -984,9 +984,9 @@ void CPastaVisuals::RenderAutoEdge()
 	std::vector<IGraphics::CLineItem> vLockedSegments;
 	if(g_Config.m_PastaAutoEdgeShowFound)
 	{
-		for(int Index = 0; Index < GameClient()->m_Controls.m_aPastaAutoEdgeFoundCount[Dummy]; ++Index)
+		for(int Index = 0; Index < GameClient()->m_AutoEdge.m_FoundCount[Dummy]; ++Index)
 		{
-			const vec2 Pos = GameClient()->m_Controls.m_aaPastaAutoEdgeFoundPos[Dummy][Index];
+			const vec2 Pos = GameClient()->m_AutoEdge.m_FoundPos[Dummy][Index];
 			const float Inward = Index == 0 ? 10.0f : -10.0f;
 			AddLineSegment(vFoundSegments, Pos + vec2(0.0f, -10.0f), Pos + vec2(0.0f, 8.0f));
 			AddLineSegment(vFoundSegments, Pos + vec2(0.0f, -10.0f), Pos + vec2(Inward, -5.0f));
@@ -995,9 +995,9 @@ void CPastaVisuals::RenderAutoEdge()
 		}
 	}
 
-	if(g_Config.m_PastaAutoEdgeShowLocked && GameClient()->m_Controls.m_aPastaAutoEdgeLocked[Dummy])
+	if(g_Config.m_PastaAutoEdgeShowLocked && GameClient()->m_AutoEdge.m_Locked[Dummy])
 	{
-		const vec2 Pos = GameClient()->m_Controls.m_aPastaAutoEdgeLockedPos[Dummy];
+		const vec2 Pos = GameClient()->m_AutoEdge.m_LockedPos[Dummy];
 		CCharacter *pLocalCharacter = GameClient()->m_PredictedWorld.GetCharacterById(GameClient()->m_Snap.m_LocalClientId);
 		const bool SafeSideLeft = pLocalCharacter != nullptr ? pLocalCharacter->GetPos().x < Pos.x : true;
 		const float Inward = SafeSideLeft ? -13.0f : 13.0f;

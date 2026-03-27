@@ -1591,8 +1591,8 @@ void CPlayers::OnRender()
 		if(g_Config.m_PastaAimbot && g_Config.m_PastaAimbotTargetGlow)
 		{
 			const int Dummy = g_Config.m_ClDummy;
-			const bool WeaponTarget = GameClient()->m_Controls.m_aPastaAimbotWeaponTargetId[Dummy] == i;
-			const bool HookTarget = GameClient()->m_Controls.m_aPastaAimbotHookTargetId[Dummy] == i;
+			const bool WeaponTarget = GameClient()->m_Aimbot.m_WeaponTargetId[Dummy] == i;
+			const bool HookTarget = GameClient()->m_Aimbot.m_HookTargetId[Dummy] == i;
 			if(WeaponTarget || HookTarget)
 			{
 				const ColorRGBA GlowColor = HookTarget ? ColorRGBA(1.0f, 0.2f, 0.18f, 1.0f) : ColorRGBA(1.0f, 0.62f, 0.12f, 1.0f);

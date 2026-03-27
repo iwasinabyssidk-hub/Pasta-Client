@@ -128,19 +128,19 @@ option(MYSQL "Enable mysql support" OFF)
 option(TEST_MYSQL "Test mysql support in unit tests (also sets -DMYSQL=ON)" OFF)
 option(AUTOUPDATE "Enable the autoupdater" OFF)
 option(INFORM_UPDATE "Inform about available updates" ON)
-option(VIDEORECORDER "Enable video recording support via FFmpeg" ON)
+option(VIDEORECORDER "Enable video recording support via FFmpeg" OFF)
 option(UPNP "Enable UPnP support" OFF)
 option(ANTIBOT "Enable support for a dynamic anticheat library (not provided, see src/antibot for interface if you want to implement your own)" OFF)
 option(HEADLESS_CLIENT "Build the client without graphics" OFF)
 option(CLIENT "Compile client" ON)
-option(SERVER "Compile server" ON)
-option(TOOLS "Compile tools" ON)
+option(SERVER "Compile server" OFF)
+option(TOOLS "Compile tools" OFF)
 option(DOWNLOAD_GTEST "Download and compile GTest" ${AUTO_DEPENDENCIES_DEFAULT})
 option(STEAM "Build the Steam release version" ON)
-option(DISCORD "Enable Discord rich presence support" OFF)
+option(DISCORD "Enable Discord rich presence support" ON)
 option(DISCORD_DYNAMIC "Enable discovering Discord rich presence libraries at runtime (Linux only)" OFF)
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
-option(DEV "Don't generate stuff necessary for packaging" OFF)
+option(DEV "Don't generate stuff necessary for packaging" ON)
 option(VULKAN "Enable the vulkan backend" ${AUTO_VULKAN_BACKEND})
 
 option(EXCEPTION_HANDLING "Enable crashdumps (only works with Windows)" OFF)
@@ -2526,6 +2526,18 @@ if(CLIENT)
     components/censor.h
     components/chat.cpp
     components/chat.h
+
+    components/pasta/aimbot.cpp
+    components/pasta/aimbot.h
+    components/pasta/autoaled.cpp
+    components/pasta/autoaled.h
+    components/pasta/autoedge.cpp
+    components/pasta/autoedge.h
+    components/pasta/avoidfreeze.cpp
+    components/pasta/avoidfreeze.h
+    components/pasta/laserunfreeze.cpp
+    components/pasta/laserunfreeze.h
+
     components/community_icons.cpp
     components/community_icons.h
     components/console.cpp
